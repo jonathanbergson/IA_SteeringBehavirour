@@ -2,17 +2,18 @@ using UnityEngine;
 
 public class Npc : MonoBehaviour
 {
-    private const float RaycastCenterDistance = 5f;
-    private const float RaycastCenterMinDistance = 2f;
-    private const float RaycastSidesDistance = 3f;
-
+    private struct Sides
+    {
+        public static float Left = -1f;
+        public static float Right = 1f;
+    }
 
     private static readonly Color RaycastColor = new(0.2627451f, 0.6666667f, 0.5450981f);
     private static readonly Color RaycastColorHit = new(00.9764706f, 0.254902f, 0.2666667f);
 
-    private readonly Vector3 _raycastLeftDirection = new(-.5f, 0, 1);
-    private readonly Vector3 _raycastCenterDirection = Vector3.forward;
-    private readonly Vector3 _raycastRightDirection = new(.5f, 0, 1);
+    private const float RaycastSidesDistance = 3f;
+    private const float RaycastCenterDistance = 5f;
+    private const float RaycastCenterMinDistance = 2f;
 
     private RaycastHit _hitLeft;
     private RaycastHit _hitCenter;
@@ -22,40 +23,86 @@ public class Npc : MonoBehaviour
     private bool _hasHitOnCenter;
     private bool _hasHitOnRight;
 
+    private const int NoSpeed = 0;
     [SerializeField] private float maxSpeed = 5f;
+
+    [SerializeField] private float rotationMinSpeed = 90f;
+    [SerializeField] private float rotationMaxSpeed = 180f;
+    [SerializeField] private float rotateSideCountDown;
+    [SerializeField] private float rotationSide = Sides.Right;
 
     private void Update()
     {
+        HandleRotation();
         HandleMove();
     }
 
     private void FixedUpdate()
     {
-        Vector3 raycastStart = transform.position;
+        Vector3 raycastOrigin = transform.position;
+        Vector3 raycastCenterDirection = transform.forward;
+        Vector3 raycastLeftDirection = raycastCenterDirection * 2 + transform.right * -1;
+        Vector3 raycastRightDirection = raycastCenterDirection * 2 + transform.right;
 
-        _hasHitOnLeft = Physics.Raycast(raycastStart, _raycastLeftDirection, out _hitLeft, RaycastSidesDistance);
-        Debug.DrawRay(raycastStart, _raycastLeftDirection * RaycastSidesDistance, _hasHitOnLeft ? RaycastColorHit : RaycastColor);
+        _hasHitOnLeft = Physics.Raycast(raycastOrigin, raycastLeftDirection, out _hitLeft, RaycastSidesDistance);
+        Debug.DrawRay(raycastOrigin, raycastLeftDirection.normalized * RaycastSidesDistance, _hasHitOnLeft ? RaycastColorHit : RaycastColor);
 
-        _hasHitOnCenter = Physics.Raycast(raycastStart, _raycastCenterDirection, out _hitCenter, RaycastCenterDistance);
-        Debug.DrawRay(raycastStart, _raycastCenterDirection * RaycastCenterDistance, _hasHitOnCenter ? RaycastColorHit : RaycastColor);
+        _hasHitOnCenter = Physics.Raycast(raycastOrigin, raycastCenterDirection, out _hitCenter, RaycastCenterDistance);
+        Debug.DrawRay(raycastOrigin, raycastCenterDirection.normalized * RaycastCenterDistance, _hasHitOnCenter ? RaycastColorHit : RaycastColor);
 
-        _hasHitOnRight = Physics.Raycast(raycastStart, _raycastRightDirection, out _hitRight, RaycastSidesDistance);
-        Debug.DrawRay(raycastStart, _raycastRightDirection * RaycastSidesDistance, _hasHitOnRight ? RaycastColorHit : RaycastColor);
+        _hasHitOnRight = Physics.Raycast(raycastOrigin, raycastRightDirection, out _hitRight, RaycastSidesDistance);
+        Debug.DrawRay(raycastOrigin, raycastRightDirection.normalized * RaycastSidesDistance, _hasHitOnRight ? RaycastColorHit : RaycastColor);
     }
 
     private void HandleMove()
     {
-        float speed = maxSpeed;
-        Vector3 direction = Vector3.forward;
-
-        if (_hasHitOnCenter)
-        {
-            bool isWallClose = _hitCenter.distance < RaycastCenterMinDistance;
-            float speedDecreasing = maxSpeed * _hitCenter.distance / RaycastCenterDistance;
-
-            speed = isWallClose ? 0f : speedDecreasing;
-        }
+        float speed = CalcTranslateSpeed();
+        Vector3 direction = transform.forward;
 
         transform.position += direction * speed * Time.deltaTime;
+    }
+
+    private float CalcTranslateSpeed()
+    {
+        if (_hasHitOnCenter == false) return maxSpeed;
+
+        var isWallClose = _hitCenter.distance < RaycastCenterMinDistance;
+        float speedDecreasing = maxSpeed * _hitCenter.distance / RaycastCenterDistance;
+
+        return isWallClose ? NoSpeed : speedDecreasing;
+    }
+
+    private void HandleRotation()
+    {
+        if (_hasHitOnCenter)
+        {
+            rotationSide = DefineRotationSide();
+            transform.Rotate(0, rotationSide * rotationMaxSpeed * Time.deltaTime, 0, Space.Self);
+        }
+        else
+        {
+            if (_hasHitOnLeft && _hasHitOnRight == false)
+                transform.Rotate(0, rotationMinSpeed * Sides.Right * Time.deltaTime, 0, Space.Self);
+            else if (_hasHitOnRight && _hasHitOnLeft == false)
+                transform.Rotate(0, rotationMinSpeed * Sides.Left * Time.deltaTime, 0, Space.Self);
+        }
+    }
+
+    private float DefineRotationSide()
+    {
+        if (rotateSideCountDown <= Time.time)
+        {
+            rotateSideCountDown = Time.time + 5f;
+
+            if (_hitLeft.distance < _hitRight.distance) rotationSide = Sides.Right;
+            else if (_hitLeft.distance > _hitRight.distance) rotationSide = Sides.Left;
+            else
+            {
+                float r = Random.Range(Sides.Left, Sides.Right);
+                rotationSide = r >= 0 ? Sides.Right : Sides.Left;
+            }
+        }
+
+        return rotationSide;
     }
 }
