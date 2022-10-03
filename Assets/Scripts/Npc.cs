@@ -2,10 +2,10 @@ using UnityEngine;
 
 public class Npc : MonoBehaviour
 {
-    private struct Sides
+    private enum Sides
     {
-        public static float Left = -1f;
-        public static float Right = 1f;
+        Left = -1,
+        Right = 1,
     }
 
     private static readonly Color RaycastColor = new(0.2627451f, 0.6666667f, 0.5450981f);
@@ -15,9 +15,7 @@ public class Npc : MonoBehaviour
     private const float RaycastCenterDistance = 5f;
     private const float RaycastCenterMinDistance = 2f;
 
-    private RaycastHit _hitLeft;
     private RaycastHit _hitCenter;
-    private RaycastHit _hitRight;
 
     private bool _hasHitOnLeft;
     private bool _hasHitOnCenter;
@@ -26,10 +24,9 @@ public class Npc : MonoBehaviour
     private const int NoSpeed = 0;
     [SerializeField] private float maxSpeed = 5f;
 
-    [SerializeField] private float rotationMinSpeed = 90f;
     [SerializeField] private float rotationMaxSpeed = 180f;
     [SerializeField] private float rotateSideCountDown;
-    [SerializeField] private float rotationSide = Sides.Right;
+    [SerializeField] private Sides rotationSide = Sides.Right;
 
     private void Update()
     {
@@ -44,13 +41,13 @@ public class Npc : MonoBehaviour
         Vector3 raycastLeftDirection = raycastCenterDirection * 2 + transform.right * -1;
         Vector3 raycastRightDirection = raycastCenterDirection * 2 + transform.right;
 
-        _hasHitOnLeft = Physics.Raycast(raycastOrigin, raycastLeftDirection, out _hitLeft, RaycastSidesDistance);
+        _hasHitOnLeft = Physics.Raycast(raycastOrigin, raycastLeftDirection, out _, RaycastSidesDistance);
         Debug.DrawRay(raycastOrigin, raycastLeftDirection.normalized * RaycastSidesDistance, _hasHitOnLeft ? RaycastColorHit : RaycastColor);
 
         _hasHitOnCenter = Physics.Raycast(raycastOrigin, raycastCenterDirection, out _hitCenter, RaycastCenterDistance);
         Debug.DrawRay(raycastOrigin, raycastCenterDirection.normalized * RaycastCenterDistance, _hasHitOnCenter ? RaycastColorHit : RaycastColor);
 
-        _hasHitOnRight = Physics.Raycast(raycastOrigin, raycastRightDirection, out _hitRight, RaycastSidesDistance);
+        _hasHitOnRight = Physics.Raycast(raycastOrigin, raycastRightDirection, out _, RaycastSidesDistance);
         Debug.DrawRay(raycastOrigin, raycastRightDirection.normalized * RaycastSidesDistance, _hasHitOnRight ? RaycastColorHit : RaycastColor);
     }
 
@@ -76,35 +73,40 @@ public class Npc : MonoBehaviour
     {
         if (_hasHitOnCenter)
         {
-            if (_hasHitOnLeft && _hasHitOnRight == false)
-                transform.Rotate(0, rotationMinSpeed * Sides.Right * Time.deltaTime, 0, Space.Self);
-            else if (_hasHitOnRight && _hasHitOnLeft == false)
-                transform.Rotate(0, rotationMinSpeed * Sides.Left * Time.deltaTime, 0, Space.Self);
+            // NOTE: Quando dois raios colidem
+            if (_hasHitOnLeft && _hasHitOnRight == false) Rotate(Sides.Right);
+            else if (_hasHitOnRight && _hasHitOnLeft == false) Rotate(Sides.Left);
             else
             {
+                // NOTE: Quando todos os raios colidem
                 rotationSide = DefineRotationSide();
-                transform.Rotate(0, rotationSide * rotationMaxSpeed * Time.deltaTime, 0, Space.Self);
+                Rotate(rotationSide, rotationMaxSpeed);
             }
         }
         else
         {
-            if (_hasHitOnLeft && _hasHitOnRight == false)
-                transform.Rotate(0, rotationMinSpeed * Sides.Right * Time.deltaTime, 0, Space.Self);
-            else if (_hasHitOnRight && _hasHitOnLeft == false)
-                transform.Rotate(0, rotationMinSpeed * Sides.Left * Time.deltaTime, 0, Space.Self);
+            // NOTE: Quando apenas os raios laterias colidem
+            if (_hasHitOnLeft && _hasHitOnRight == false) Rotate(Sides.Right);
+            else if (_hasHitOnRight && _hasHitOnLeft == false) Rotate(Sides.Left);
         }
     }
 
-    private float DefineRotationSide()
+    private Sides DefineRotationSide()
     {
         if (rotateSideCountDown <= Time.time)
         {
             rotateSideCountDown = Time.time + 5f;
 
-            float r = Random.Range(Sides.Left, Sides.Right);
+            float r = Random.Range(-1f, 1f);
             rotationSide = r >= 0 ? Sides.Right : Sides.Left;
         }
 
         return rotationSide;
+    }
+
+    private void Rotate(Sides side, float speed = 90f)
+    {
+        float yAngle = speed * (float) side * Time.deltaTime;
+        transform.Rotate(0, yAngle, 0, Space.Self);
     }
 }
