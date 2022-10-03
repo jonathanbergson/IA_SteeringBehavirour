@@ -71,24 +71,16 @@ public class Npc : MonoBehaviour
 
     private void HandleRotation()
     {
-        if (_hasHitOnCenter)
+        bool allHits = _hasHitOnCenter && _hasHitOnLeft && _hasHitOnRight;
+        bool justCenterHit = _hasHitOnCenter && !_hasHitOnLeft && !_hasHitOnRight;
+
+        if (allHits || justCenterHit)
         {
-            // NOTE: Quando dois raios colidem
-            if (_hasHitOnLeft && _hasHitOnRight == false) Rotate(Sides.Right);
-            else if (_hasHitOnRight && _hasHitOnLeft == false) Rotate(Sides.Left);
-            else
-            {
-                // NOTE: Quando todos os raios colidem
-                rotationSide = DefineRotationSide();
-                Rotate(rotationSide, rotationMaxSpeed);
-            }
+            Sides side = DefineRotationSide();
+            Rotate(side, rotationMaxSpeed);
         }
-        else
-        {
-            // NOTE: Quando apenas os raios laterias colidem
-            if (_hasHitOnLeft && _hasHitOnRight == false) Rotate(Sides.Right);
-            else if (_hasHitOnRight && _hasHitOnLeft == false) Rotate(Sides.Left);
-        }
+        else if (_hasHitOnLeft && _hasHitOnRight == false) Rotate(Sides.Right);
+        else if (_hasHitOnRight && _hasHitOnLeft == false) Rotate(Sides.Left);
     }
 
     private Sides DefineRotationSide()
@@ -97,6 +89,7 @@ public class Npc : MonoBehaviour
         {
             rotateSideCountDown = Time.time + 5f;
 
+            // TODO: Checar qual hit lateral é menor antes de fazer um random
             float r = Random.Range(-1f, 1f);
             rotationSide = r >= 0 ? Sides.Right : Sides.Left;
         }
@@ -106,6 +99,7 @@ public class Npc : MonoBehaviour
 
     private void Rotate(Sides side, float speed = 90f)
     {
+        rotationSide = side; // NOTE: Salva o último lado que o NPC virou
         float yAngle = speed * (float) side * Time.deltaTime;
         transform.Rotate(0, yAngle, 0, Space.Self);
     }
