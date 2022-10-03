@@ -11,7 +11,7 @@ public class Npc : MonoBehaviour
     private static readonly Color RaycastColor = new(0.2627451f, 0.6666667f, 0.5450981f);
     private static readonly Color RaycastColorHit = new(00.9764706f, 0.254902f, 0.2666667f);
 
-    private const float RaycastSidesDistance = 3f;
+    private const float RaycastSidesDistance = 4f;
     private const float RaycastCenterDistance = 5f;
     private const float RaycastCenterMinDistance = 2f;
 
@@ -76,8 +76,15 @@ public class Npc : MonoBehaviour
     {
         if (_hasHitOnCenter)
         {
-            rotationSide = DefineRotationSide();
-            transform.Rotate(0, rotationSide * rotationMaxSpeed * Time.deltaTime, 0, Space.Self);
+            if (_hasHitOnLeft && _hasHitOnRight == false)
+                transform.Rotate(0, rotationMinSpeed * Sides.Right * Time.deltaTime, 0, Space.Self);
+            else if (_hasHitOnRight && _hasHitOnLeft == false)
+                transform.Rotate(0, rotationMinSpeed * Sides.Left * Time.deltaTime, 0, Space.Self);
+            else
+            {
+                rotationSide = DefineRotationSide();
+                transform.Rotate(0, rotationSide * rotationMaxSpeed * Time.deltaTime, 0, Space.Self);
+            }
         }
         else
         {
@@ -94,13 +101,8 @@ public class Npc : MonoBehaviour
         {
             rotateSideCountDown = Time.time + 5f;
 
-            if (_hitLeft.distance < _hitRight.distance) rotationSide = Sides.Right;
-            else if (_hitLeft.distance > _hitRight.distance) rotationSide = Sides.Left;
-            else
-            {
-                float r = Random.Range(Sides.Left, Sides.Right);
-                rotationSide = r >= 0 ? Sides.Right : Sides.Left;
-            }
+            float r = Random.Range(Sides.Left, Sides.Right);
+            rotationSide = r >= 0 ? Sides.Right : Sides.Left;
         }
 
         return rotationSide;
